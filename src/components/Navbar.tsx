@@ -1,97 +1,183 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import {
+  Bars3Icon,
+  XMarkIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MagnifyingGlassIcon,
+  UserIcon,
+  HomeIcon,
+  InformationCircleIcon,
+  BriefcaseIcon,
+  PhoneIcon,
+} from "@heroicons/react/24/outline";
+
+const links = [
+  { href: "/", label: "Home", icon: <HomeIcon className="w-5 h-5 inline mr-2" /> },
+  { href: "/about", label: "About", icon: <InformationCircleIcon className="w-5 h-5 inline mr-2" /> },
+  { href: "/services", label: "Services", icon: <BriefcaseIcon className="w-5 h-5 inline mr-2" /> },
+  { href: "/contact", label: "Contact", icon: <PhoneIcon className="w-5 h-5 inline mr-2" /> },
+];
+
+const dashboardLinks = [
+  { href: "/dashboard/profile", label: "Profile" },
+  { href: "/dashboard/settings", label: "Settings" },
+  { href: "/dashboard/feed", label: "Feed" },
+  { href: "/dashboard/courses", label: "Courses" },
+  { href: "/dashboard/posts", label: "Posts" },
+  { href: "/dashboard/support", label: "Support" },
+];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setSearchOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="bg-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/">
-              <span className="text-2xl font-bold text-blue-600 cursor-pointer">
-                Nirdeshona
-              </span>
-            </Link>
-          </div>
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-screen-xl mx-auto flex items-center justify-between px-4 py-3">
+        {/* Logo */}
+        <Link href="/" className="flex items-center space-x-2 text-blue-600 text-2xl font-bold">
+          <Image src="/ni-logo-black.png" alt="Logo" width={40} height={40} style={{ height: 40, width: 'auto' }} />
+        </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex space-x-6">
-            <Link href="/" className="text-gray-700 hover:text-blue-600">
-              Home
-            </Link>
-            <Link href="/auth/login" className="text-gray-700 hover:text-blue-600">
-              Login
-            </Link>
-            <Link href="/auth/register" className="text-gray-700 hover:text-blue-600">
-              Register
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-700 hover:text-blue-600 focus:outline-none"
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center space-x-8">
+          {links.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="text-gray-700 hover:text-blue-600 transition"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {isOpen ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                )}
-              </svg>
+              {label}
+            </Link>
+          ))}
+
+          {/* Dashboard dropdown */}
+          <div className="relative group">
+            <button className="text-gray-700 hover:text-blue-600 transition">
+              Dashboard
             </button>
+            <div className="absolute left-0 top-full mt-2 hidden w-40 flex-col rounded-md bg-white p-2 shadow-lg group-hover:flex">
+              {dashboardLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="block rounded px-3 py-1 text-sm text-gray-700 hover:bg-blue-100 hover:text-blue-600 transition"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
           </div>
+
+          {/* Search box */}
+          <div className="relative hidden lg:block">
+            <input
+              type="text"
+              placeholder="Search..."
+              className="rounded-full border border-gray-300 bg-gray-100 px-4 py-1.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <MagnifyingGlassIcon className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+          </div>
+
+          {/* Login icon */}
+          <Link
+            href="/auth/login"
+            className="text-gray-700 hover:text-blue-600 transition text-xl"
+            aria-label="Login"
+          >
+            <UserIcon className="w-5 h-5 inline" />
+          </Link>
+        </nav>
+
+        {/* Mobile controls */}
+        <div className="flex items-center md:hidden space-x-4">
+          {/* Toggle search */}
+          <button
+            onClick={() => setSearchOpen((v) => !v)}
+            aria-label="Toggle search"
+            className="text-gray-700 hover:text-blue-600 transition text-xl"
+          >
+            <MagnifyingGlassIcon className="w-5 h-5" />
+          </button>
+
+          {/* Login */}
+          <Link href="/auth/login" aria-label="Login" className="text-gray-700 hover:text-blue-600 transition text-xl">
+            <UserIcon className="w-5 h-5" />
+          </Link>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle mobile menu"
+            className="text-gray-700 hover:text-blue-600 transition text-2xl"
+          >
+            {mobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+          </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden px-2 pt-2 pb-3 space-y-1 bg-white shadow-md">
-          <Link
-            href="/"
-            className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded"
-            onClick={() => setIsOpen(false)}
-          >
-            Home
-          </Link>
-          <Link
-            href="/auth/login"
-            className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded"
-            onClick={() => setIsOpen(false)}
-          >
-            Login
-          </Link>
-          <Link
-            href="/auth/register"
-            className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded"
-            onClick={() => setIsOpen(false)}
-          >
-            Register
-          </Link>
+      {/* Mobile search input */}
+      {isSearchOpen && (
+        <div className="border-t border-gray-200 bg-white px-4 py-3 md:hidden">
+          <input
+            type="text"
+            placeholder="Search..."
+            className="w-full rounded border border-gray-300 bg-gray-100 px-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       )}
-    </nav>
+
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <div className="md:hidden px-2 pt-2 pb-3 space-y-1 bg-white shadow-md">
+          {links.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded"
+              onClick={() => setMobileOpen(false)}
+            >
+              {label}
+            </Link>
+          ))}
+
+          {/* Dashboard submenu */}
+          <div className="border-t border-gray-200 pt-2">
+            <button
+              onClick={() => setDashboardOpen(!dashboardOpen)}
+              className="flex w-full items-center justify-between px-3 py-2 text-gray-700 hover:bg-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <span>Dashboard</span>
+              {dashboardOpen ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
+            </button>
+            {dashboardOpen && (
+              <div className="ml-4 mt-2 flex flex-col space-y-2">
+                {dashboardLinks.map(({ href, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="block px-3 py-1 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </header>
   );
 }
