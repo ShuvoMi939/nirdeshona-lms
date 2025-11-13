@@ -6,6 +6,7 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithEmailAndPassword,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
@@ -14,11 +15,11 @@ import Link from "next/link";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import FloatingLabelInput from "@/components/FloatingLabelInput";
 import Image from "next/image";
 
-// Map Firebase error codes to user-friendly messages
+// Firebase error map
 const firebaseErrorMap: { [key: string]: string } = {
-  "auth/email-already-in-use": "This email is already registered. Please login or use another email.",
   "auth/invalid-email": "The email address is invalid. Please check and try again.",
   "auth/weak-password": "Password is too weak. Please use at least 6 characters.",
   "auth/network-request-failed": "Network error. Please check your internet connection.",
@@ -26,7 +27,6 @@ const firebaseErrorMap: { [key: string]: string } = {
 
 export default function RegisterPage() {
   const router = useRouter();
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,12 +34,20 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendEmail, setResendEmail] = useState(false);
+  const [resending, setResending] = useState(false);
 
-  // Handle Email/Password Registration
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setMessage("");
+    setResendEmail(false);
+
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setError("Please fill in all the required fields.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -57,17 +65,65 @@ export default function RegisterPage() {
       await sendEmailVerification(user);
       await auth.signOut();
 
-      setMessage("Account created! Please check your email to verify your account.");
-      setTimeout(() => router.push("/auth/login"), 3000);
+      setMessage("Account created successfully! Please check your email to verify your account.");
+      setTimeout(() => router.push("/auth/login"), 3500);
     } catch (err: any) {
-      const friendlyMessage = firebaseErrorMap[err.code] || "Something went wrong. Please try again.";
-      setError(friendlyMessage);
+      if (err.code === "auth/email-already-in-use") {
+        try {
+          const existingUser = await signInWithEmailAndPassword(auth, email, password);
+          const user = existingUser.user;
+
+          if (!user.emailVerified) {
+            setMessage(
+              "This email is already registered but not yet verified. Please check your inbox (or spam folder) for the verification email, or click below to resend the link."
+            );
+            setResendEmail(true);
+            await auth.signOut();
+            setIsSubmitting(false);
+            return;
+          }
+
+          setError("This email is already registered and verified. Please log in instead.");
+          await auth.signOut();
+        } catch {
+          setError("This email is already registered. Please log in instead.");
+        }
+      } else {
+        const friendlyMessage = firebaseErrorMap[err.code] || "Something went wrong. Please try again.";
+        setError(friendlyMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle Google Sign Up
+  const handleResendVerification = async () => {
+    setError("");
+    setResending(true);
+    setMessage("Sending verification email...");
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (user.emailVerified) {
+        setMessage("Your email is already verified. You can log in now.");
+        setResendEmail(false);
+        await auth.signOut();
+        return;
+      }
+
+      await sendEmailVerification(user);
+      setMessage("Verification email has been sent successfully. Please check your inbox or spam folder.");
+      setResendEmail(false); // hide button after success
+      await auth.signOut();
+    } catch {
+      setError("Failed to resend verification email. Please check your credentials or try again later.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleGoogleSignup = async () => {
     setError("");
     setMessage("");
@@ -79,14 +135,14 @@ export default function RegisterPage() {
 
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
-        name: user.displayName,
+        name: user.displayName || "Unnamed User",
         email: user.email,
         role: "subscriber",
         createdAt: new Date(),
       });
 
       router.push("/dashboard");
-    } catch (err) {
+    } catch {
       setError("Google sign-up failed. Please try again.");
     }
   };
@@ -94,120 +150,107 @@ export default function RegisterPage() {
   return (
     <>
       <Navbar />
-
       <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8 bg-gray-50">
         <div className="w-full max-w-[350px] flex flex-col gap-5">
-          {/* Brand Header */}
           <Link href="/" className="flex items-center gap-2 self-center font-medium">
-            <div className="w-6 h-6 relative">
-              <Image
-                src="/ni-fav.svg"
-                alt="Logo"
-                fill
-                className="object-contain"
-              />
+            <div className="bg-white w-[25px] h-[25px] relative rounded-lg border border-gray-200">
+              <Image src="/ni-fav.svg" alt="Logo" fill className="object-contain p-[2px]" />
             </div>
             Nirdeshona Inc.
           </Link>
 
-          {/* Card */}
-          <div className="bg-white text-black flex flex-col gap-5 rounded-xl border-1 border-[oklch(92.9%_.013_255.508)] py-6 shadow-sm">
-            {/* Title */}
-            <div className="text-center px-6 border-b-[1.5px] border-b-[oklch(92.9%_.013_255.508)] pb-3">
+          <div className="bg-white text-black flex flex-col gap-5 rounded-xl border border-gray-200 py-6 shadow-sm">
+            <div className="text-center px-6 border-b border-gray-200 pb-3">
               <h1 className="font-semibold text-xl">Create your account</h1>
               <p className="text-sm text-gray-500">Fill in the form to register</p>
             </div>
 
             <div className="px-6">
               <form onSubmit={handleRegister} className="grid gap-4" noValidate autoComplete="off">
-                {/* Name */}
-                <div className="floating-label-group grid gap-1">
-                  <input
-                    id="name"
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder=" "
-                    className="px-3 py-1 rounded-md border h-10 text-md w-full border-gray-300"
-                    disabled={isSubmitting}
-                  />
-                  <label htmlFor="name" className="text-sm text-gray-600">
-                    Full Name
-                  </label>
-                </div>
-
-                {/* Email */}
-                <div className="floating-label-group grid gap-1">
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder=" "
-                    autoComplete="email"
-                    className="px-3 py-1 rounded-md border h-10 text-md w-full border-gray-300"
-                    disabled={isSubmitting}
-                  />
-                  <label htmlFor="email" className="text-sm text-gray-600">
-                    Email
-                  </label>
-                </div>
-
-                {/* Password */}
-                <div className="floating-label-group grid gap-1 relative">
-                  <input
-                    id="password"
+                <FloatingLabelInput
+                  label="Full Name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  name="name"
+                  required
+                />
+                <FloatingLabelInput
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
+                  required
+                />
+                <div className="relative">
+                  <FloatingLabelInput
+                    label="Password"
                     type={showPassword ? "text" : "password"}
-                    required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder=" "
-                    autoComplete="new-password"
-                    className="px-3 py-1 rounded-md border h-10 text-md w-full border-gray-300"
-                    disabled={isSubmitting}
+                    name="password"
+                    required
                   />
-                  <label htmlFor="password" className="text-sm text-gray-600">
-                    Password
-                  </label>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-2.5 text-gray-500"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    tabIndex={-1}
+                    className="absolute right-2 top-3 text-gray-500"
                   >
                     {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                   </button>
                 </div>
 
-                {/* Error or Success */}
-                {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-                {message && <p className="text-sm text-green-600 text-center">{message}</p>}
+                {/* ✅ Resend section */}
+                {(resendEmail || error || message) && (
+                  <div className="border bg-gray-100 border-gray-200 rounded-md p-3 flex flex-col gap-2">
+                    {error && <p className="text-xs text-gray-700">{error}</p>}
 
-                {/* Register Button */}
+                    {/* Only show Sending... if resending */}
+                    {resending ? (
+                      <p className="text-xs text-gray-700">Sending...</p>
+                    ) : (
+                      <>
+                        {message && <p className="text-xs text-gray-700">{message}</p>}
+                        {resendEmail && (
+                          <button
+                            type="button"
+                            onClick={handleResendVerification}
+                            className="text-xs text-gray-800 bg-gray-200 hover:bg-gray-300 rounded-md px-2 py-1 transition-colors duration-200 self-start disabled:opacity-60"
+                          >
+                            Resend verification email
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  className="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition w-full"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || resending}
+                  className="bg-gray-700 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition w-full disabled:opacity-60"
                 >
                   {isSubmitting ? "Creating Account..." : "Register"}
                 </button>
 
-                {/* Google Signup */}
+                <div className="relative flex items-center -my-2">
+                  <div className="flex-grow border-t border-gray-300"></div>
+                  <span className="mx-2 text-gray-400 text-sm font-medium">OR</span>
+                  <div className="flex-grow border-t border-gray-300"></div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleGoogleSignup}
-                  className="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-red-700 transition w-full flex items-center justify-center gap-2"
+                  className="bg-gray-700 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition w-full flex items-center justify-center gap-2"
                 >
                   <img src="/google-icon.svg" alt="Google" className="w-5 h-5" /> Sign up with Google
                 </button>
 
-                {/* Login Link */}
-                <div className="flex items-center justify-center text-sm text-gray-700 gap-2 -mx-6 pt-3 border-t-[1.5px] border-t-[oklch(92.9%_.013_255.508)]">
+                <div className="flex items-center justify-center text-sm text-gray-700 gap-2 -mx-6 pt-3 border-t border-gray-200">
                   Already have an account?
-                  <Link href="/auth/login" className="underline underline-offset-4 text-green-600">
+                  <Link href="/auth/login" className="underline underline-offset-4 text-gray-800">
                     Login
                   </Link>
                 </div>
@@ -215,7 +258,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="text-gray-500 text-center text-xs">
             By registering, you agree to our
             <br />
@@ -230,6 +272,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
       <Footer />
     </>
   );

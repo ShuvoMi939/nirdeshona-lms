@@ -1,17 +1,17 @@
+/* ✅ 1. Import Google Font FIRST */
+@import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700&display=swap');
+
+/* ✅ 2. Import Tailwind AFTER Google Font */
 @import "tailwindcss";
 
+/* ✅ 3. Define theme variables */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-sans: "Anek Bangla", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* ✅ 4. Dark mode colors */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,8 +19,16 @@
   }
 }
 
+/* ✅ 5. Tailwind inline theme */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Anek Bangla", sans-serif;
+}
+
+/* ✅ 6. Apply globally */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
