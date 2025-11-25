@@ -7,8 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
@@ -41,6 +40,9 @@ export default function LoginPage() {
     }
   }, []);
 
+  // ---------------------------------------------------
+  //                EMAIL + PASSWORD LOGIN
+  // ---------------------------------------------------
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -55,70 +57,81 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const userQuery = query(collection(db, "users"), where("email", "==", email));
-      const userSnap = await getDocs(userQuery);
+      // 1️⃣ Check Neon DB
+      const neonRes = await fetch("/api/login-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
-      if (userSnap.empty) {
+      const neonData = await neonRes.json();
+
+      if (!neonData.exists) {
+        setLoading(false);
         setError("No account found with this email address.");
+        return;
+      }
+
+      // 2️⃣ Firebase login
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      const user = userCredential.user;
+
+      if (!user.emailVerified) {
+        setError(
+          "This email is not yet verified. Please check your inbox or click below to resend verification."
+        );
+        setUnverifiedUser({ email, password });
         setLoading(false);
         return;
       }
 
-      const userData = userSnap.docs[0].data();
-
-      if (userData.role === "admin") {
-        setError("Admin accounts cannot log in from this page.");
-        setLoading(false);
-        return;
+      // Remember Me
+      if (rememberMe && typeof window !== "undefined") {
+        localStorage.setItem("rememberedEmail", email);
+        localStorage.setItem("rememberedPassword", password);
+      } else if (typeof window !== "undefined") {
+        localStorage.removeItem("rememberedEmail");
+        localStorage.removeItem("rememberedPassword");
       }
 
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        if (!user.emailVerified) {
-          setError("This email is not yet verified. Please check your inbox (or spam folder) for the verification email, or click below to resend the link.");
-          setUnverifiedUser({ email, password });
-          setLoading(false);
-          return;
-        }
-
-        if (rememberMe && typeof window !== "undefined") {
-          localStorage.setItem("rememberedEmail", email);
-          localStorage.setItem("rememberedPassword", password);
-        } else if (typeof window !== "undefined") {
-          localStorage.removeItem("rememberedEmail");
-          localStorage.removeItem("rememberedPassword");
-        }
-
-        setLoading(false);
-        router.push("/dashboard");
-      } catch (authError: any) {
-        setLoading(false);
-        if (authError.code === "auth/wrong-password") {
-          setError("Incorrect password. Please try again.");
-        } else if (authError.code === "auth/user-not-found") {
-          setError("No account found with this email address.");
-        } else if (authError.code === "auth/too-many-requests") {
-          setError("Too many failed attempts. Please try again later.");
-        } else {
-          setError("Login failed. Please try again.");
-        }
-      }
-    } catch {
       setLoading(false);
-      setError("Login failed. Please try again.");
+      router.push("/dashboard");
+    } catch (err: any) {
+      setLoading(false);
+
+      if (err.code === "auth/wrong-password") {
+        setError("Incorrect password. Please try again.");
+      } else if (err.code === "auth/user-not-found") {
+        setError("No account found with this email address.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many failed attempts. Please try again later.");
+      } else {
+        setError("Login failed. Please try again.");
+      }
     }
   };
 
+  // ---------------------------------------------------
+  //            RESEND VERIFICATION EMAIL
+  // ---------------------------------------------------
   const handleResendVerification = async () => {
     if (!unverifiedUser) return;
+
     setError("");
     setResendSuccess("");
     setResendLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, unverifiedUser.email, unverifiedUser.password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        unverifiedUser.email,
+        unverifiedUser.password
+      );
       const user = userCredential.user;
 
       if (user.emailVerified) {
@@ -130,46 +143,57 @@ export default function LoginPage() {
 
       await sendEmailVerification(user);
       setResendSuccess("Verification email sent! Please check your inbox.");
-      setUnverifiedUser(null); // Hide button after success
-    } catch (err) {
-      setError("Failed to resend verification email. Please check your credentials and try again.");
+      setUnverifiedUser(null);
+    } catch {
+      setError("Failed to resend verification email. Try again.");
     } finally {
       setResendLoading(false);
     }
   };
 
+  // ---------------------------------------------------
+  //                     GOOGLE LOGIN
+  // ---------------------------------------------------
   const handleGoogleLogin = async () => {
     setError("");
-    const provider = new GoogleAuthProvider();
 
     try {
+      const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
+      // ⭐ Check if user already exists in Neon DB
+      const check = await fetch("/api/login-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      });
 
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          name: user.displayName || "Unnamed User",
-          email: user.email,
-          role: "subscriber",
-          createdAt: new Date(),
+      const data = await check.json();
+
+      // ⭐ If user does NOT exist → create in Neon DB
+      if (!data.exists) {
+        await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: user.uid,
+            name: user.displayName || "Unnamed User",
+            email: user.email,
+            avatar_url: user.photoURL,
+          }),
         });
       }
 
-      if (!user.emailVerified) {
-        setError("Please verify your Google email before proceeding.");
-        return;
-      }
-
       router.push("/dashboard");
-    } catch {
+    } catch (err) {
       setError("Google login failed. Please try again.");
     }
   };
 
+  // ---------------------------------------------------
+  //                         UI
+  // ---------------------------------------------------
   return (
     <>
       <Navbar />
@@ -195,7 +219,6 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  name="email"
                   required
                 />
 
@@ -205,9 +228,9 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    name="password"
                     required
                   />
+
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -217,6 +240,7 @@ export default function LoginPage() {
                   </button>
                 </div>
 
+                {/* ✅ Remember Me + Forgot Password */}
                 <div className="flex justify-between items-center text-sm -mt-2">
                   <label className="flex items-center gap-2">
                     <input
@@ -227,31 +251,34 @@ export default function LoginPage() {
                     />
                     Remember me
                   </label>
-                  <Link href="/auth/reset-password" className="text-gray-700 hover:underline">Forgot password?</Link>
+
+                  <Link
+                    href="/auth/reset-password"
+                    className="text-gray-700 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
 
-                {/* Feedback messages with bordered div */}
-                {(error || resendSuccess || unverifiedUser) && (
-                  <div className="border bg-gray-100 border-gray-200 rounded-md p-3 flex flex-col gap-2">
-                    {error && <p className="text-xs text-gray-700">{error}</p>}
-                    {resendSuccess && <p className="text-xs text-gray-700">{resendSuccess}</p>}
-                    {unverifiedUser && !resendSuccess && (
-                      <button
-                        type="button"
-                        onClick={handleResendVerification}
-                        disabled={resendLoading}
-                        className="text-xs text-gray-800 bg-gray-200 hover:bg-gray-300 rounded-md px-2 py-1 transition-colors duration-200 self-start disabled:opacity-60"
-                      >
-                        {resendLoading ? "Sending..." : "Resend verification email"}
-                      </button>
-                    )}
-                  </div>
+                {error && (
+                  <p className="text-red-600 text-xs border bg-red-50 border-red-200 p-2 rounded">{error}</p>
+                )}
+
+                {unverifiedUser && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    className="text-xs bg-gray-200 px-2 py-1 rounded"
+                    disabled={resendLoading}
+                  >
+                    {resendLoading ? "Sending..." : "Resend verification email"}
+                  </button>
                 )}
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-gray-700 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition w-full disabled:opacity-60"
+                  className="bg-gray-700 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 w-full disabled:opacity-60"
                 >
                   {loading ? "Logging in..." : "Login"}
                 </button>
@@ -265,28 +292,31 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="bg-gray-700 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition w-full flex items-center justify-center gap-2"
+                  className="bg-gray-700 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 w-full flex items-center justify-center gap-2"
                 >
-                  <img src="/google-icon.svg" alt="Google" className="w-5 h-5" /> Sign in with Google
+                  <img src="/google-icon.svg" alt="Google" className="w-5 h-5" /> Login with Google
                 </button>
 
                 <div className="flex items-center justify-center text-sm text-gray-700 gap-2 -mx-6 pt-3 border-t border-gray-200">
-                  Don’t have an account?
-                  <Link href="/auth/register" className="underline underline-offset-4 text-gray-800">Sign up</Link>
+                  New here?
+                  <Link href="/auth/register" className="underline underline-offset-4">
+                    Create Account
+                  </Link>
                 </div>
               </form>
             </div>
           </div>
 
           <div className="text-gray-500 text-center text-xs">
-            By clicking continue, you agree to our
+            By logging in, you agree to our
             <br />
-            <Link href="/terms" className="hover:text-blue-600 underline underline-offset-4">Terms of Service</Link>{" "}
+            <Link href="/terms" className="underline underline-offset-4">Terms of Service</Link>{" "}
             and{" "}
-            <Link href="/privacy" className="hover:text-blue-600 underline underline-offset-4">Privacy Policy</Link>.
+            <Link href="/privacy" className="underline underline-offset-4">Privacy Policy</Link>.
           </div>
         </div>
       </div>
+
       <Footer />
     </>
   );

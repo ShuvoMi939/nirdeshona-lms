@@ -7,9 +7,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
+  updateProfile,
 } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
@@ -37,6 +37,9 @@ export default function RegisterPage() {
   const [resendEmail, setResendEmail] = useState(false);
   const [resending, setResending] = useState(false);
 
+  // --------------------------------------------------------------------
+  //              ⭐ REGISTRATION WITH NEON DATABASE ⭐
+  // --------------------------------------------------------------------
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -51,23 +54,39 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
+      // 1️⃣ Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name,
-        email,
-        role: "subscriber",
-        createdAt: new Date(),
+      // Update Firebase profile name
+      await updateProfile(user, { displayName: name });
+
+      // 2️⃣ Save user to Neon Database via API
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          name,
+          email,
+          avatar_url: user.photoURL || null,
+        }),
       });
 
+      if (!res.ok) {
+        throw new Error("Failed to save user to Neon database");
+      }
+
+      // 3️⃣ Send email verification
       await sendEmailVerification(user);
+
+      // Sign out so user is forced to verify before login
       await auth.signOut();
 
-      setMessage("Account created successfully! Please check your email to verify your account.");
+      setMessage("Account created successfully! Please check your inbox to verify your email.");
       setTimeout(() => router.push("/auth/login"), 3500);
     } catch (err: any) {
+      // If email already exists — Firebase error
       if (err.code === "auth/email-already-in-use") {
         try {
           const existingUser = await signInWithEmailAndPassword(auth, email, password);
@@ -75,7 +94,7 @@ export default function RegisterPage() {
 
           if (!user.emailVerified) {
             setMessage(
-              "This email is already registered but not yet verified. Please check your inbox (or spam folder) for the verification email, or click below to resend the link."
+              "This email is already registered but not verified. Please check your email or click below to resend the verification link."
             );
             setResendEmail(true);
             await auth.signOut();
@@ -83,13 +102,13 @@ export default function RegisterPage() {
             return;
           }
 
-          setError("This email is already registered and verified. Please log in instead.");
+          setError("This email is already registered and verified. Please login instead.");
           await auth.signOut();
         } catch {
-          setError("This email is already registered. Please log in instead.");
+          setError("This email is already registered. Please login instead.");
         }
       } else {
-        const friendlyMessage = firebaseErrorMap[err.code] || "Something went wrong. Please try again.";
+        const friendlyMessage = firebaseErrorMap[err.code] || err.message || "Something went wrong.";
         setError(friendlyMessage);
       }
     } finally {
@@ -97,6 +116,9 @@ export default function RegisterPage() {
     }
   };
 
+  // --------------------------------------------------------------------
+  //                   ⭐ RESEND VERIFICATION EMAIL ⭐
+  // --------------------------------------------------------------------
   const handleResendVerification = async () => {
     setError("");
     setResending(true);
@@ -107,23 +129,26 @@ export default function RegisterPage() {
       const user = userCredential.user;
 
       if (user.emailVerified) {
-        setMessage("Your email is already verified. You can log in now.");
+        setMessage("Your email is already verified. You can login now.");
         setResendEmail(false);
         await auth.signOut();
         return;
       }
 
       await sendEmailVerification(user);
-      setMessage("Verification email has been sent successfully. Please check your inbox or spam folder.");
-      setResendEmail(false); // hide button after success
+      setMessage("Verification email sent successfully. Please check your inbox.");
+      setResendEmail(false);
       await auth.signOut();
     } catch {
-      setError("Failed to resend verification email. Please check your credentials or try again later.");
+      setError("Failed to resend email. Check your credentials or try later.");
     } finally {
       setResending(false);
     }
   };
 
+  // --------------------------------------------------------------------
+  //                   ⭐ GOOGLE SIGNUP ⭐
+  // --------------------------------------------------------------------
   const handleGoogleSignup = async () => {
     setError("");
     setMessage("");
@@ -133,12 +158,16 @@ export default function RegisterPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name: user.displayName || "Unnamed User",
-        email: user.email,
-        role: "subscriber",
-        createdAt: new Date(),
+      // Save to Neon DB
+      await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          name: user.displayName || "Unnamed User",
+          email: user.email,
+          avatar_url: user.photoURL,
+        }),
       });
 
       router.push("/dashboard");
@@ -147,6 +176,9 @@ export default function RegisterPage() {
     }
   };
 
+  // --------------------------------------------------------------------
+  //                               UI
+  // --------------------------------------------------------------------
   return (
     <>
       <Navbar />
@@ -167,29 +199,16 @@ export default function RegisterPage() {
 
             <div className="px-6">
               <form onSubmit={handleRegister} className="grid gap-4" noValidate autoComplete="off">
-                <FloatingLabelInput
-                  label="Full Name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  name="name"
-                  required
-                />
-                <FloatingLabelInput
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  name="email"
-                  required
-                />
+                <FloatingLabelInput label="Full Name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+
+                <FloatingLabelInput label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
                 <div className="relative">
                   <FloatingLabelInput
                     label="Password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    name="password"
                     required
                   />
                   <button
@@ -201,12 +220,10 @@ export default function RegisterPage() {
                   </button>
                 </div>
 
-                {/* ✅ Resend section */}
                 {(resendEmail || error || message) && (
                   <div className="border bg-gray-100 border-gray-200 rounded-md p-3 flex flex-col gap-2">
                     {error && <p className="text-xs text-gray-700">{error}</p>}
 
-                    {/* Only show Sending... if resending */}
                     {resending ? (
                       <p className="text-xs text-gray-700">Sending...</p>
                     ) : (
@@ -216,7 +233,7 @@ export default function RegisterPage() {
                           <button
                             type="button"
                             onClick={handleResendVerification}
-                            className="text-xs text-gray-800 bg-gray-200 hover:bg-gray-300 rounded-md px-2 py-1 transition-colors duration-200 self-start disabled:opacity-60"
+                            className="text-xs text-gray-800 bg-gray-200 hover:bg-gray-300 rounded-md px-2 py-1"
                           >
                             Resend verification email
                           </button>
