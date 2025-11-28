@@ -2,10 +2,7 @@ import admin from "firebase-admin";
 
 if (!admin.apps.length) {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  if (!privateKey) {
-    throw new Error("Missing FIREBASE_PRIVATE_KEY");
-  }
+  if (!privateKey) throw new Error("Missing FIREBASE_PRIVATE_KEY");
 
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -16,4 +13,6 @@ if (!admin.apps.length) {
   });
 }
 
+export const adminAuth = admin.auth();
+export const db = admin.firestore();
 export default admin;

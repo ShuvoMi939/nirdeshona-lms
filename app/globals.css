@@ -32,3 +32,36 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+
+/* Mobile Scrollbar for admin dashboard */
+.mobile-scrollbar-admin::-webkit-scrollbar {
+  height: 3.5px;
+}
+.mobile-scrollbar-admin::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 5px;
+}
+.mobile-scrollbar-admin::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 5px;
+}
+.mobile-scrollbar-admin::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+
+
+/* NProgress top bar */
+#nprogress {
+  pointer-events: none;
+}
+#nprogress .bar {
+  background: #4B5563!important;
+  height: 4px;
+  z-index: 999999;
+}
+#nprogress .spinner {
+  display: none !important;
+}
+

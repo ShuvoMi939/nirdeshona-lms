@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
+import NProgress from "nprogress";
+import "nprogress/nprogress.css"; // Import NProgress styles
 import {
   Bars3Icon,
   XMarkIcon,
@@ -16,6 +19,10 @@ import {
   PhoneIcon,
 } from "@heroicons/react/24/outline";
 
+// Configure NProgress to disable the spinner
+NProgress.configure({ showSpinner: false, speed: 400, minimum: 0.1 });
+
+// Navigation links
 const links = [
   { href: "/", label: "Home", icon: <HomeIcon className="w-5 h-5 inline mr-2" /> },
   { href: "/about", label: "About", icon: <InformationCircleIcon className="w-5 h-5 inline mr-2" /> },
@@ -38,12 +45,21 @@ export default function Navbar() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const pathname = usePathname();
+
+  // ---------- NProgress Setup ----------
+  useEffect(() => {
+    NProgress.start();
+    const timer = setTimeout(() => NProgress.done(), 100);
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-screen-xl mx-auto flex items-center justify-between px-4 py-3">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2 text-blue-600 text-2xl font-bold">
-          <Image src="/ni-logo-black.png" alt="Logo" width={40} height={40} style={{ height: 40, width: 'auto' }} />
+          <Image src="/ni-logo-black.png" alt="Logo" width={40} height={40} style={{ height: 40, width: "auto" }} />
         </Link>
 
         {/* Desktop nav */}
@@ -52,7 +68,7 @@ export default function Navbar() {
             <Link
               key={href}
               href={href}
-              className="text-gray-700 hover:text-blue-600 transition"
+              className={`text-gray-700 hover:text-blue-600 transition ${pathname === href ? "font-semibold" : ""}`}
             >
               {label}
             </Link>
@@ -60,9 +76,7 @@ export default function Navbar() {
 
           {/* Dashboard dropdown */}
           <div className="relative group">
-            <button className="text-gray-700 hover:text-blue-600 transition">
-              Dashboard
-            </button>
+            <button className="text-gray-700 hover:text-blue-600 transition">Dashboard</button>
             <div className="absolute left-0 top-full mt-2 hidden w-40 flex-col rounded-md bg-white p-2 shadow-lg group-hover:flex">
               {dashboardLinks.map(({ href, label }) => (
                 <Link
@@ -100,7 +114,6 @@ export default function Navbar() {
 
         {/* Mobile controls */}
         <div className="flex items-center md:hidden space-x-4">
-          {/* Toggle search */}
           <button
             onClick={() => setSearchOpen((v) => !v)}
             aria-label="Toggle search"
@@ -109,12 +122,10 @@ export default function Navbar() {
             <MagnifyingGlassIcon className="w-5 h-5" />
           </button>
 
-          {/* Login */}
           <Link href="/auth/login" aria-label="Login" className="text-gray-700 hover:text-blue-600 transition text-xl">
             <UserIcon className="w-5 h-5" />
           </Link>
 
-          {/* Mobile menu button */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle mobile menu"

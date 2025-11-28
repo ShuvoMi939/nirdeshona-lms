@@ -7,9 +7,35 @@ import { UserCircleIcon, PencilSquareIcon, ChatBubbleOvalLeftEllipsisIcon, Docum
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState<string>("Loading...");
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUser(u);
+
+        // Fetch role from Neon DB
+        try {
+          const token = await u.getIdToken(); // Get Firebase ID token
+          const res = await fetch("/api/users/get-role", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ email: u.email }),
+          });
+          const data = await res.json();
+          if (res.ok && data.role) setRole(data.role);
+          else setRole("N/A");
+        } catch (err) {
+          console.error(err);
+          setRole("N/A");
+        }
+      } else {
+        setUser(null);
+      }
+    });
     return () => unsub();
   }, []);
 
@@ -44,6 +70,7 @@ export default function DashboardPage() {
           <Info label="Email" value={user.email} />
           <Info label="UID" value={user.uid} />
           <Info label="Display Name" value={user.displayName || "N/A"} />
+          <Info label="Role" value={role} />
           <Info label="Last Login" value={user.metadata?.lastSignInTime || "N/A"} />
           <Info label="Account Created" value={user.metadata?.creationTime || "N/A"} />
         </div>
