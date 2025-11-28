@@ -8,7 +8,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import "../globals.css";
-import "nprogress/nprogress.css"; // NProgress base styles
+import "nprogress/nprogress.css";
+import Loading from "@/components/Loading";
+import NothingFound from "@/components/NothingFound";
 
 import {
   HomeIcon,
@@ -54,19 +56,9 @@ export default function ControlPanelLayout({ children }: { children: React.React
     return () => unsub();
   }, [router]);
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
-      </div>
-    );
+  if (loading) return <Loading />;
 
-  if (role === "denied")
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-red-600 text-lg">Access Denied. You are not an admin.</p>
-      </div>
-    );
+  if (role === "denied") return <NothingFound message="404 — Page Not Found" linkText="Go to Home" linkHref="/" />;
 
   const links = [
     { name: "Dashboard", href: "/control-panel", icon: HomeIcon },
@@ -105,7 +97,7 @@ export default function ControlPanelLayout({ children }: { children: React.React
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1 px-3 py-2 rounded whitespace-nowrap border border-red-400 text-red-600"
+          className="flex items-center gap-1 px-3 py-2 whitespace-nowrap border border-red-400 text-red-600"
         >
           <ArrowLeftStartOnRectangleIcon className="w-5 h-5" />
           Logout
@@ -145,7 +137,7 @@ export default function ControlPanelLayout({ children }: { children: React.React
           <button
             onClick={handleLogout}
             className="mt-10 px-3 py-2 flex items-center gap-3 text-red-600 font-semibold
-                       border border-red-300 rounded hover:bg-red-50 transition"
+                       border border-red-300 hover:bg-red-50 transition"
           >
             <ArrowLeftStartOnRectangleIcon className="w-6 h-6" />
             Logout
