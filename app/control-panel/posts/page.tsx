@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
 import Loading from "@/components/Loading";
 import PostModal from "@/components/posts/PostModal";
+import truncate from "html-truncate";
 
 type Post = {
   id: number;
@@ -167,7 +168,11 @@ export default function AdminPostsPage() {
                 {post.role} • {post.status} •{" "}
                 {new Date(post.created_at).toLocaleString()}
               </p>
-              <p>{post.content.substring(0, 120)}...</p>
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: truncate(post.content, 120, { ellipsis: "..." }),
+                }}
+              />
             </div>
 
             <div className="flex flex-col gap-2">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Pool } from "pg";
+import truncate from "html-truncate"; // <-- import html-truncate
 
 // Types
 type Category = { id: number; name: string };
@@ -117,10 +118,13 @@ export default async function BlogPage() {
                   {new Date(post.created_at).toLocaleDateString()}
                 </p>
 
-                <p className="text-gray-700 flex-1">
-                  {post.content.replace(/(<([^>]+)>)/gi, "").substring(0, 120)}
-                  {post.content.length > 120 ? "..." : ""}
-                </p>
+                {/* HTML-safe truncated content */}
+                <div
+                  className="text-gray-700 flex-1"
+                  dangerouslySetInnerHTML={{
+                    __html: truncate(post.content, 120, { ellipsis: "..." }),
+                  }}
+                />
 
                 <Link
                   href={`/blog/${post.slug}`}

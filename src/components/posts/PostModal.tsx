@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Editor from "@/components/Editor";
 
 type Category = { id: number; name: string; parent_id?: number };
 
@@ -135,43 +136,60 @@ export default function PostModal({ post, onClose, onSave, canCreateCategory }: 
   return (
     <div className="post-custom-scroll fixed inset-0 bg-white/70 backdrop-blur-sm flex justify-center items-start overflow-auto z-50 pt-2">
       <div className="bg-white p-5 w-full max-w-lg shadow-sm">
-        <h2 className="text-xl font-bold mb-4">{post ? "Edit Post" : "Create Post"}</h2>
+
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">{post ? "Edit Post" : "Create Post"}</h2>
+
+          <div className="flex items-center gap-3">
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              className="px-3 py-1 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+            <div className="flex justify-end gap-3">
+              <button onClick={onClose} className="px-4 py-2 bg-gray-300 hover:bg-gray-400">Cancel</button>
+              <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700">Save</button>
+            </div>
+          </div>
+        </div>
 
         <input
           type="text"
           placeholder="Title"
           value={title}
           onChange={e => setTitle(e.target.value)}
-          className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
-        <textarea
-          placeholder="Content"
-          value={content}
-          onChange={e => setContent(e.target.value)}
-          className="w-full px-3 py-2 border rounded mb-3 h-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        {/* Slug with lock/unlock */}
+        <div className="mb-3 flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Slug"
+            value={slug}
+            onChange={e => setSlug(e.target.value)}
+            disabled={slugLocked}
+            className="flex-1 px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="button"
+            onClick={() => setSlugLocked(!slugLocked)}
+            className="px-2 py-1 border border-gray-300"
+          >
+            {slugLocked ? "🔒" : "🔓"}
+          </button>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Thumbnail URL"
-          value={thumbnail}
-          onChange={e => setThumbnail(e.target.value)}
-          className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <input
-          type="text"
-          placeholder="Tags (comma separated)"
-          value={tags}
-          onChange={e => setTags(e.target.value)}
-          className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <Editor
+          content={content}
+          onChange={(html) => setContent(html)}
         />
 
         {/* Categories */}
         <div className="mb-3 relative" ref={dropdownRef}>
-          <label className="block mb-1 font-medium">Categories:</label>
-
           {canCreateCategory && (
             <div className="flex gap-2 mb-2">
               <input
@@ -179,12 +197,12 @@ export default function PostModal({ post, onClose, onSave, canCreateCategory }: 
                 placeholder="New Category"
                 value={newCategory}
                 onChange={e => setNewCategory(e.target.value)}
-                className="flex-1 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-2 py-1 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
                 onClick={addCategory}
-                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-3 py-1 bg-green-600 text-white hover:bg-green-700"
               >
                 Add
               </button>
@@ -193,13 +211,13 @@ export default function PostModal({ post, onClose, onSave, canCreateCategory }: 
 
           <div
             onClick={() => setCatDropdownOpen(prev => !prev)}
-            className="flex flex-wrap gap-1 border p-2 rounded cursor-pointer min-h-[40px] items-center"
+            className="flex flex-wrap gap-1 border border-gray-300 p-2 cursor-pointer min-h-[40px] items-center"
           >
             {categories.length === 0 && <span className="text-gray-400">Select categories...</span>}
             {categories.map(id => {
               const cat = allCategories.find(c => c.id === id);
               return cat ? (
-                <span key={id} className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded flex items-center gap-1">
+                <span key={id} className="bg-blue-100 text-blue-800 px-2 py-0.5 flex items-center gap-1">
                   {getCategoryPath(cat, allCategories)}
                   <button
                     type="button"
@@ -213,7 +231,7 @@ export default function PostModal({ post, onClose, onSave, canCreateCategory }: 
           </div>
 
           {catDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+            <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 shadow max-h-60 overflow-auto">
               <input
                 type="text"
                 placeholder="Search categories..."
@@ -243,38 +261,22 @@ export default function PostModal({ post, onClose, onSave, canCreateCategory }: 
           )}
         </div>
 
-        {/* Slug with lock/unlock */}
-        <div className="mb-3 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Slug"
-            value={slug}
-            onChange={e => setSlug(e.target.value)}
-            disabled={slugLocked}
-            className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            type="button"
-            onClick={() => setSlugLocked(!slugLocked)}
-            className="px-2 py-1 border rounded"
-          >
-            {slugLocked ? "🔒" : "🔓"}
-          </button>
-        </div>
+        <input
+          type="text"
+          placeholder="Thumbnail URL"
+          value={thumbnail}
+          onChange={e => setThumbnail(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
-        <select
-          value={status}
-          onChange={e => setStatus(e.target.value)}
-          className="px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-        >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </select>
-
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
-        </div>
+        <input
+          type="text"
+          placeholder="Tags (comma separated)"
+          value={tags}
+          onChange={e => setTags(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        
       </div>
     </div>
   );
