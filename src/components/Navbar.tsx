@@ -26,7 +26,7 @@ NProgress.configure({ showSpinner: false, speed: 400, minimum: 0.1 });
 const links = [
   { href: "/", label: "Home", icon: <HomeIcon className="w-5 h-5 inline mr-2" /> },
   { href: "/about", label: "About", icon: <InformationCircleIcon className="w-5 h-5 inline mr-2" /> },
-  { href: "/services", label: "Services", icon: <BriefcaseIcon className="w-5 h-5 inline mr-2" /> },
+  { href: "/blog", label: "Blog", icon: <BriefcaseIcon className="w-5 h-5 inline mr-2" /> },
   { href: "/contact", label: "Contact", icon: <PhoneIcon className="w-5 h-5 inline mr-2" /> },
 ];
 
