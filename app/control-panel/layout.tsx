@@ -15,6 +15,9 @@ import NothingFound from "@/components/NothingFound";
 import {
   HomeIcon,
   UserGroupIcon,
+  ShieldCheckIcon,
+  DocumentTextIcon,
+  FolderIcon,
   Cog6ToothIcon,
   ChartBarIcon,
   WrenchScrewdriverIcon,
@@ -63,6 +66,9 @@ export default function ControlPanelLayout({ children }: { children: React.React
   const links = [
     { name: "Dashboard", href: "/control-panel", icon: HomeIcon },
     { name: "User Management", href: "/control-panel/users", icon: UserGroupIcon },
+    { name: "User Roles", href: "/control-panel/roles", icon: ShieldCheckIcon },
+    { name: "Posts", href: "/control-panel/posts", icon: DocumentTextIcon },
+    { name: "Categories", href: "/control-panel/categories", icon: FolderIcon },
     { name: "Settings", href: "/control-panel/settings", icon: Cog6ToothIcon },
     { name: "Reports", href: "/control-panel/reports", icon: ChartBarIcon },
     { name: "Tools", href: "/control-panel/tools", icon: WrenchScrewdriverIcon },
@@ -145,7 +151,7 @@ export default function ControlPanelLayout({ children }: { children: React.React
         </aside>
 
         {/* PAGE CONTENT */}
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1 p-4 overflow-x-auto">{children}</main>
       </div>
 
       <Footer />
